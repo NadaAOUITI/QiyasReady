@@ -12,6 +12,7 @@ const linkClass = ({ isActive }) =>
 const nav = [
   { to: "/dashboard", label: "الرئيسية" },
   { to: "/mock-exam", label: "محاكاة" },
+  { to: "/goals", label: "أهدافي" },
   { to: "/practice", label: "تمرين" },
   { to: "/performance", label: "الأداء" },
   { to: "/study-plan", label: "خطة" },

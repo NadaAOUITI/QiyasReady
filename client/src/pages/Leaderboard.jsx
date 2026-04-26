@@ -53,7 +53,12 @@ export function Leaderboard() {
         </table>
       </div>
       {d?.note && <p className="text-slate-500 text-xs mt-4">{d.note}</p>}
-      <p className="mt-6 text-sm text-slate-600">
+      <p className="mt-4 text-sm">
+        <Link className="text-brand font-medium" to="/leaderboard/cohort">
+          → صدارة مدرستي
+        </Link>
+      </p>
+      <p className="mt-3 text-sm text-slate-600">
         قارن نفسك بمحاولاتك في <Link className="text-brand font-medium" to="/performance">الأداء</Link>{" "}
         — الرقم «الحقيقي» في لوحتك.
       </p>

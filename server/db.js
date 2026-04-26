@@ -38,6 +38,12 @@ function migrate() {
     if (!has("streak_days")) {
       db.exec("ALTER TABLE users ADD COLUMN streak_days INTEGER NOT NULL DEFAULT 0");
     }
+    if (!has("school_name")) {
+      db.exec("ALTER TABLE users ADD COLUMN school_name TEXT");
+    }
+    if (!has("credits")) {
+      db.exec("ALTER TABLE users ADD COLUMN credits INTEGER NOT NULL DEFAULT 0");
+    }
   }
   if (tables.has("mock_exams")) {
     const cols = db.prepare("PRAGMA table_info(mock_exams)").all();
@@ -65,6 +71,27 @@ function migrate() {
   } catch {
     /* existing DB may have duplicates; delete data/qiyas.db to reset */
   }
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS user_goals (
+      user_id INTEGER NOT NULL,
+      goal_type TEXT NOT NULL,
+      target INTEGER NOT NULL,
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      PRIMARY KEY (user_id, goal_type),
+      CHECK (goal_type IN ('daily', 'weekly', 'monthly')),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+    CREATE TABLE IF NOT EXISTS question_reports (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      question_id INTEGER NOT NULL,
+      report_text TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY (question_id) REFERENCES questions(id),
+      UNIQUE (user_id, question_id)
+    );
+  `);
 }
 
 export function initDb() {

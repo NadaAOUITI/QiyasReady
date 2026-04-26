@@ -97,6 +97,8 @@ export function getProfile(userId) {
     id: u.id,
     email: u.email,
     name: u.name,
+    schoolName: u.school_name || "",
+    credits: u.credits ?? 0,
     role: u.role,
     created_at: u.created_at,
     freeTrialExhausted: !!u.free_trial_exhausted,

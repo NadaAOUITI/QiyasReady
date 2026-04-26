@@ -2,11 +2,42 @@ import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { api } from "../lib/api.js";
 
+const OFFLINE_KEY = "qiyas_offline_pack";
+
 export function MockExam() {
   const nav = useNavigate();
   const [busy, setBusy] = useState(false);
+  const [dlBusy, setDlBusy] = useState(false);
   const [err, setErr] = useState("");
   const [paywall, setPaywall] = useState(false);
+
+  async function downloadOffline() {
+    setErr("");
+    setDlBusy(true);
+    try {
+      const d = await api("/exams/offline-pack");
+      const str = JSON.stringify(d, null, 2);
+      try {
+        localStorage.setItem(OFFLINE_KEY, str);
+      } catch {
+        /* quota */
+      }
+      const blob = new Blob([str], { type: "application/json" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = `qiyas-offline-exam-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    } catch (e) {
+      if (e.status === 403 && e.data?.code === "PAYWALL") {
+        setPaywall(true);
+      } else {
+        setErr(e.data?.error || e.message);
+      }
+    } finally {
+      setDlBusy(false);
+    }
+  }
 
   async function start() {
     setErr("");
@@ -76,14 +107,28 @@ export function MockExam() {
           {err}
         </div>
       )}
-      <button
-        type="button"
-        disabled={busy}
-        onClick={start}
-        className="inline-block bg-gold text-brand font-bold rounded-xl px-8 py-3 shadow-lg disabled:opacity-50"
-      >
-        {busy ? "جارٍ التجهيز…" : "ابدأ المحاكاة الآن"}
-      </button>
+      <div className="flex flex-wrap items-center gap-3">
+        <button
+          type="button"
+          disabled={busy}
+          onClick={start}
+          className="inline-block bg-gold text-brand font-bold rounded-xl px-8 py-3 shadow-lg disabled:opacity-50"
+        >
+          {busy ? "جارٍ التجهيز…" : "ابدأ المحاكاة الآن"}
+        </button>
+        <button
+          type="button"
+          disabled={dlBusy}
+          onClick={downloadOffline}
+          className="inline-block border-2 border-brand text-brand font-semibold rounded-xl px-5 py-2.5 text-sm disabled:opacity-50"
+        >
+          {dlBusy ? "…" : "تحميل للاستخدام دون اتصال"}
+        </button>
+      </div>
+      <p className="text-xs text-slate-500 mt-2">
+        بعد التحميل يمكن فتح <Link to="/offline-exam" className="text-brand font-medium">محاكاة دون اتصال</Link> من
+        نفس الجهاز.
+      </p>
       <p className="mt-6">
         <Link to="/dashboard" className="text-brand font-medium hover:underline">
           ← العودة للوحة التحكم

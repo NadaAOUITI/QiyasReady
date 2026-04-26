@@ -180,6 +180,133 @@ router.get("/performance", (req, res) => {
   });
 });
 
+/**
+ * GET /api/exams/offline-pack
+ * Returns a static JSON structure for “flight mode” (no server-timed exam in DB).
+ */
+router.get("/offline-pack", (req, res) => {
+  const userId = req.user.id;
+  const urow = db
+    .prepare("SELECT free_trial_exhausted, subscription_tier FROM users WHERE id = ?")
+    .get(userId);
+  if (urow?.free_trial_exhausted && !isPaidTier(urow.subscription_tier)) {
+    return res.status(403).json({
+      error: "انتهت المحاولة المجانية. اختر باقة للمتابعة.",
+      code: "PAYWALL",
+    });
+  }
+  const vRows = db
+    .prepare("SELECT id FROM questions WHERE section = 'verbal' ORDER BY RANDOM() LIMIT 10")
+    .all();
+  const qRows = db
+    .prepare("SELECT id FROM questions WHERE section = 'quantitative' ORDER BY RANDOM() LIMIT 10")
+    .all();
+  if (vRows.length < 10 || qRows.length < 10) {
+    return res.status(500).json({ error: "Not enough questions in the bank" });
+  }
+  const ids = shuffleInPlace([...vRows.map((r) => r.id), ...qRows.map((r) => r.id)]);
+  const getQ = db.prepare("SELECT * FROM questions WHERE id = ?");
+  const questions = [];
+  for (let pos = 0; pos < ids.length; pos++) {
+    const q = getQ.get(ids[pos]);
+    if (!q) return res.status(500).json({ error: "DB error" });
+    questions.push({
+      position: pos,
+      id: q.id,
+      section: q.section,
+      questionText: q.question_text,
+      options: { A: q.option_a, B: q.option_b, C: q.option_c, D: q.option_d },
+      correctAnswer: q.correct_answer,
+      explanation: q.explanation,
+    });
+  }
+  res.json({
+    version: 1,
+    timeLimitSeconds: TIME_LIMIT_S,
+    totalQuestions: TOTAL_MOCK,
+    generatedAt: new Date().toISOString(),
+    questions,
+  });
+});
+
+/**
+ * POST /api/exams/offline-submit
+ * Sync offline attempt: recalculates score on server, stores exam like online submit.
+ */
+router.post("/offline-submit", (req, res) => {
+  const userId = req.user.id;
+  const urow = db
+    .prepare("SELECT free_trial_exhausted, subscription_tier FROM users WHERE id = ?")
+    .get(userId);
+  if (urow?.free_trial_exhausted && !isPaidTier(urow.subscription_tier)) {
+    return res.status(403).json({ error: "انتهت المحاولة المجانية.", code: "PAYWALL" });
+  }
+  const { questionIds, answers, durationSeconds } = req.body || {};
+  if (!Array.isArray(questionIds) || questionIds.length !== TOTAL_MOCK) {
+    return res.status(400).json({ error: "questionIds: array of 20" });
+  }
+  if (!answers || typeof answers !== "object") {
+    return res.status(400).json({ error: "answers required" });
+  }
+  const getQ = db.prepare("SELECT * FROM questions WHERE id = ?");
+  for (let pos = 0; pos < TOTAL_MOCK; pos++) {
+    const qid = Number(questionIds[pos]);
+    const q = getQ.get(qid);
+    if (!q) return res.status(400).json({ error: "Invalid question id" });
+    const letter = String(answers[qid] ?? answers[String(qid)] ?? "").toUpperCase();
+    if (!["A", "B", "C", "D"].includes(letter)) {
+      return res.status(400).json({ error: "Missing answer" });
+    }
+  }
+
+  const startedAt = new Date();
+  forfeitInProgress(userId);
+  const submitted = new Date();
+  const dur =
+    durationSeconds != null
+      ? Math.max(0, Math.min(86400, Math.floor(Number(durationSeconds))))
+      : 1200;
+
+  const work = () => {
+    const examIns = db
+      .prepare(
+        `INSERT INTO mock_exams (user_id, started_at, total_questions, status, ends_at, submitted_at, score, duration_seconds)
+         VALUES (?, ?, ?, 'submitted', ?, ?, NULL, ?)`
+      )
+      .run(
+        userId,
+        startedAt.toISOString(),
+        TOTAL_MOCK,
+        startedAt.toISOString(),
+        submitted.toISOString(),
+        dur
+      );
+    const examId = examIns.lastInsertRowid;
+    const insA = db.prepare(
+      `INSERT INTO exam_answers (exam_id, question_id, selected_answer, is_correct, time_taken_seconds)
+       VALUES (?, ?, ?, ?, ?)`
+    );
+    const insM = db.prepare("INSERT INTO mock_exam_questions (exam_id, position, question_id) VALUES (?, ?, ?)");
+    let correct = 0;
+    for (let pos = 0; pos < TOTAL_MOCK; pos++) {
+      const qid = Number(questionIds[pos]);
+      const q = getQ.get(qid);
+      const letter = String(answers[qid] ?? answers[String(qid)] ?? "").toUpperCase();
+      const isCorrect = letter === String(q.correct_answer).toUpperCase() ? 1 : 0;
+      if (isCorrect) correct += 1;
+      insM.run(examId, pos, qid);
+      insA.run(examId, qid, letter, isCorrect, null);
+    }
+    const score = (correct / TOTAL_MOCK) * 100;
+    db.prepare("UPDATE mock_exams SET score = ? WHERE id = ?").run(score, examId);
+    return { examId, score };
+  };
+
+  const { examId, score } = db.transaction(work)();
+  markFreeTrialUsed(userId);
+  res.json({ exam: { id: examId, score, submittedAt: submitted.toISOString() } });
+});
+
 /** GET /api/exams */
 router.get("/", (req, res) => {
   const userId = req.user.id;

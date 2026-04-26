@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../lib/api.js";
+import { useAuth } from "../context/AuthContext.jsx";
 
 const sections = [
   { id: "verbal", label: "لفظي" },
@@ -14,6 +15,7 @@ function fmt(s) {
 const SEC = 60;
 
 export function PracticeMode() {
+  const { refresh } = useAuth();
   const [section, setSection] = useState("verbal");
   const [q, setQ] = useState(null);
   const [freeMeta, setFreeMeta] = useState(null);
@@ -26,6 +28,9 @@ export function PracticeMode() {
   const [feedback, setFeedback] = useState(null);
   const [left, setLeft] = useState(SEC);
   const [phase, setPhase] = useState("pick");
+  const [reportText, setReportText] = useState("");
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportMsg, setReportMsg] = useState("");
   const t0 = useRef(0);
   const timeoutHandled = useRef(false);
 
@@ -33,6 +38,9 @@ export function PracticeMode() {
     setErr("");
     setPaywall(false);
     setFeedback(null);
+    setReportText("");
+    setReportOpen(false);
+    setReportMsg("");
     setHint(null);
     setLoading(true);
     setPhase("question");
@@ -246,6 +254,65 @@ export function PracticeMode() {
             </span>
           </p>
           <p className="text-sm text-slate-700 leading-relaxed mb-3">{feedback.explanation}</p>
+          {q && (
+            <div className="mb-3 border-t border-slate-200/80 pt-3">
+              {!reportOpen && !reportMsg && (
+                <button
+                  type="button"
+                  onClick={() => setReportOpen(true)}
+                  className="text-sm text-amber-900 underline"
+                >
+                  هل هذا السؤال خاطئ؟
+                </button>
+              )}
+              {reportOpen && !reportMsg && (
+                <div className="space-y-2">
+                  <p className="text-xs text-slate-500">وصف المشكلة (يمنح 5 نقاط عند أول بلاغ):</p>
+                  <textarea
+                    className="w-full border border-slate-200 rounded-lg p-2 text-sm min-h-[72px]"
+                    value={reportText}
+                    onChange={(e) => setReportText(e.target.value)}
+                    dir="auto"
+                  />
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        setReportMsg("");
+                        try {
+                          const d = await api("/practice/report", {
+                            method: "POST",
+                            body: { questionId: q.id, reportText },
+                          });
+                          setReportMsg(`شكراً! حصلت على +${d.creditsAdded} نقاط.`);
+                          setReportOpen(false);
+                          await refresh();
+                        } catch (e) {
+                          setReportMsg(
+                            "خطأ: " + (e.data?.error || e.message || "تعذر الإرسال")
+                          );
+                        }
+                      }}
+                      className="px-3 py-1.5 bg-gold text-brand text-xs font-bold rounded-lg"
+                    >
+                      إرسال
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setReportOpen(false);
+                        setReportText("");
+                      }}
+                      className="px-2 py-1 text-xs text-slate-500"
+                    >
+                      إلغاء
+                    </button>
+                  </div>
+                </div>
+              )}
+              {reportMsg && <p className="text-sm text-emerald-800 bg-emerald-50 rounded-lg px-2 py-1">{reportMsg}</p>}
+            </div>
+          )}
           <div className="flex flex-wrap gap-2">
             <button
               type="button"

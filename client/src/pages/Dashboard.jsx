@@ -8,15 +8,21 @@ export function Dashboard() {
   const [exams, setExams] = useState(null);
   const [perf, setPerf] = useState(null);
   const [err, setErr] = useState("");
+  const [goalNudge, setGoalNudge] = useState(null);
 
   useEffect(() => {
     let c = true;
     (async () => {
       try {
-        const [e, p] = await Promise.all([api("/exams"), api("/exams/performance")]);
+        const [e, p, g] = await Promise.all([
+          api("/exams"),
+          api("/exams/performance"),
+          api("/goals/daily-nudge").catch(() => ({ nudge: null })),
+        ]);
         if (c) {
           setExams(e.exams || []);
           setPerf(p);
+          if (g?.nudge?.message) setGoalNudge(g.nudge.message);
         }
       } catch (e) {
         if (c) setErr(e.data?.error || e.message);
@@ -32,6 +38,22 @@ export function Dashboard() {
     .sort((a, b) => new Date(b.submitted_at) - new Date(a.submitted_at))[0];
   return (
     <div className="max-w-5xl mx-auto px-4 py-8 page-enter">
+      {goalNudge && (
+        <div
+          className="fixed bottom-4 left-4 right-4 z-[55] max-w-md mx-auto bg-amber-100 border-2 border-amber-400/80 text-amber-950 text-sm rounded-2xl px-4 py-3 shadow-lg flex justify-between items-center gap-2"
+          role="status"
+        >
+          <span>{goalNudge}</span>
+          <button
+            type="button"
+            onClick={() => setGoalNudge(null)}
+            className="shrink-0 text-amber-900/70 hover:text-amber-900"
+            aria-label="إغلاق"
+          >
+            ×
+          </button>
+        </div>
+      )}
       {err && (
         <p className="text-amber-700 text-sm mb-2 bg-amber-50 border border-amber-200/60 rounded-lg px-3 py-1">
           {err}
@@ -105,6 +127,7 @@ export function Dashboard() {
       <h3 className="text-sm font-semibold text-slate-500 mb-2">وصول سريع</h3>
       <div className="flex flex-wrap gap-2">
         {[
+          ["/goals", "أهدافي"],
           ["/performance", "الأداء"],
           ["/study-plan", "خطة الدراسة"],
           ["/materials", "المادة الدراسية"],

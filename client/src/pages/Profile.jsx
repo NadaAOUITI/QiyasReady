@@ -1,5 +1,7 @@
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
+import { api } from "../lib/api.js";
 
 const tierLabel = (t) => {
   const m = {
@@ -14,6 +16,22 @@ const tierLabel = (t) => {
 
 export function Profile() {
   const { user, refresh } = useAuth();
+  const [school, setSchool] = useState(user?.schoolName || "");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    setSchool(user?.schoolName || "");
+  }, [user?.schoolName]);
+
+  async function saveSchool() {
+    setSaving(true);
+    try {
+      await api("/users/profile", { method: "PATCH", body: { schoolName: school } });
+      await refresh();
+    } finally {
+      setSaving(false);
+    }
+  }
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-8 page-enter" dir="rtl">
@@ -25,6 +43,28 @@ export function Profile() {
         <p className="font-mono text-sm" dir="ltr">
           {user?.email}
         </p>
+        <p className="text-slate-700 mt-2 text-lg" dir="ltr">
+          🏆 نقاط: <strong>{user?.credits ?? 0}</strong>
+        </p>
+        <p className="text-sm text-slate-500 mt-3">المدرسة (للصدارة حسب المدرسة)</p>
+        <div className="flex flex-wrap gap-2 items-center mt-1">
+          <input
+            type="text"
+            className="border border-slate-200 rounded-lg px-2 py-1.5 text-sm flex-1 min-w-[10rem]"
+            value={school}
+            onChange={(e) => setSchool(e.target.value)}
+            placeholder="مثال: ISIMM"
+            dir="ltr"
+          />
+          <button
+            type="button"
+            onClick={saveSchool}
+            disabled={saving}
+            className="px-3 py-1.5 bg-slate-100 text-brand text-sm rounded-lg font-medium border border-slate-200"
+          >
+            {saving ? "…" : "حفظ"}
+          </button>
+        </div>
         <p className="text-sm text-slate-500 mt-3">الباقة</p>
         <p>{tierLabel(user?.subscriptionTier)}</p>
         {user?.freePractice && !user.freePractice.unlimited && user.freePractice.remaining != null && (

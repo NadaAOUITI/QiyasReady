@@ -19,6 +19,9 @@ import { Profile } from "./pages/Profile.jsx";
 import { Pricing } from "./pages/Pricing.jsx";
 import { NotFound } from "./pages/NotFound.jsx";
 import CommonMistakes from "./pages/CommonMistakes.jsx";
+import { Goals } from "./pages/Goals.jsx";
+import { CohortLeaderboard } from "./pages/CohortLeaderboard.jsx";
+import { OfflineExam } from "./pages/OfflineExam.jsx";
 
 const Performance = lazy(() => import("./pages/Performance.jsx"));
 
@@ -43,6 +46,7 @@ export default function App() {
             <Route path="/pricing" element={<Pricing />} />
             <Route element={<RequireAuth />}>
               <Route path="/mock-exam/run/:examId" element={<ExamSession />} />
+              <Route path="/offline-exam" element={<OfflineExam />} />
               <Route element={<AppLayout />}>
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/mock-exam" element={<MockExam />} />
@@ -59,6 +63,8 @@ export default function App() {
                 <Route path="/study-plan" element={<StudyPlan />} />
                 <Route path="/materials" element={<StudyMaterial />} />
                 <Route path="/leaderboard" element={<Leaderboard />} />
+                <Route path="/leaderboard/cohort" element={<CohortLeaderboard />} />
+                <Route path="/goals" element={<Goals />} />
                 <Route path="/profile" element={<Profile />} />
                 <Route path="/common-mistakes" element={<CommonMistakes />} />
               </Route>

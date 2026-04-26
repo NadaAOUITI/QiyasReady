@@ -4,12 +4,14 @@ import dotenv from "dotenv";
 import express from "express";
 import cors from "cors";
 import { initDb, db } from "./db.js";
+import { ensureCohortDemoUsers } from "./seed/cohortUsers.js";
 import authRoutes from "./routes/auth.js";
 import examRoutes from "./routes/exams.js";
 import practiceRoutes from "./routes/practice.js";
 import aiRoutes from "./routes/ai.js";
 import userRoutes from "./routes/users.js";
 import leaderboardRoutes from "./routes/leaderboard.js";
+import goalsRoutes from "./routes/goals.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 /* Load .env from server/ first, then repo root (dotenv does not override already-set vars) */
@@ -24,6 +26,7 @@ if (questionCount === 0) {
   const { runSeed } = await import("./seed/runSeed.js");
   runSeed();
 }
+ensureCohortDemoUsers();
 
 const app = express();
 app.use(cors({ origin: true, credentials: true }));
@@ -44,6 +47,7 @@ app.use("/api/practice", practiceRoutes);
 app.use("/api/ai", aiRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/leaderboard", leaderboardRoutes);
+app.use("/api/goals", goalsRoutes);
 
 app.use((err, _req, res, _next) => {
   console.error(err);

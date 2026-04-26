@@ -175,6 +175,32 @@ router.get("/hint", async (req, res) => {
   res.json({ hint, fallback: !key });
 });
 
+const REPORT_REWARD = 5;
+
+/** POST /api/practice/report { questionId, reportText } — credits for error reports (MVP) */
+router.post("/report", (req, res) => {
+  const qid = Number(req.body?.questionId);
+  const text = String(req.body?.reportText || "").trim();
+  if (!qid) return res.status(400).json({ error: "questionId required" });
+  if (text.length < 3) return res.status(400).json({ error: "أدخل وصفاً أطول" });
+  const ex = db.prepare("SELECT id FROM questions WHERE id = ?").get(qid);
+  if (!ex) return res.status(404).json({ error: "not found" });
+  try {
+    db.prepare("INSERT INTO question_reports (user_id, question_id, report_text) VALUES (?, ?, ?)").run(
+      req.user.id,
+      qid,
+      text
+    );
+  } catch (e) {
+    if (e?.code === "SQLITE_CONSTRAINT_UNIQUE") {
+      return res.status(409).json({ error: "لقد أرسلت بلاغاً عن هذا السؤال مسبقاً." });
+    }
+    throw e;
+  }
+  db.prepare("UPDATE users SET credits = COALESCE(credits, 0) + ? WHERE id = ?").run(REPORT_REWARD, req.user.id);
+  res.json({ ok: true, creditsAdded: REPORT_REWARD, credits: getProfile(req.user.id).credits });
+});
+
 /** GET /api/practice/question?section=verbal|quantitative */
 router.get("/question", (req, res) => {
   if (!ensurePracticeQuota(req, res)) return;
