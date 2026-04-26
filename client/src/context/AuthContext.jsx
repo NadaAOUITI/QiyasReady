@@ -20,8 +20,12 @@ export function AuthProvider({ children }) {
       const d = await api("/auth/me");
       setUser(d.user);
     } catch (e) {
-      setUser(null);
-      setToken(null);
+      // Only 401 = invalid/expired token. Network/5xx: keep session so one bad /me
+      // (or refresh during another screen) does not log the user out.
+      if (e?.status === 401) {
+        setUser(null);
+        setToken(null);
+      }
     } finally {
       setLoading(false);
     }

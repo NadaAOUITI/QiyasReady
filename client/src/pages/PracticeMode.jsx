@@ -16,9 +16,13 @@ const SEC = 60;
 export function PracticeMode() {
   const [section, setSection] = useState("verbal");
   const [q, setQ] = useState(null);
+  const [freeMeta, setFreeMeta] = useState(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [hint, setHint] = useState(null);
+  const [hintBusy, setHintBusy] = useState(false);
   const [err, setErr] = useState("");
+  const [paywall, setPaywall] = useState(false);
   const [feedback, setFeedback] = useState(null);
   const [left, setLeft] = useState(SEC);
   const [phase, setPhase] = useState("pick");
@@ -27,17 +31,24 @@ export function PracticeMode() {
 
   const loadQuestion = useCallback(async (sec) => {
     setErr("");
+    setPaywall(false);
     setFeedback(null);
+    setHint(null);
     setLoading(true);
     setPhase("question");
     timeoutHandled.current = false;
     try {
       const d = await api(`/practice/question?section=${encodeURIComponent(sec)}`);
       setQ(d.question);
+      setFreeMeta(d.freePractice || null);
       setLeft(SEC);
       t0.current = performance.now();
     } catch (e) {
-      setErr(e.data?.error || e.message);
+      if (e.status === 403 && e.data?.code === "PAYWALL_PRACTICE") {
+        setPaywall(true);
+      } else {
+        setErr(e.data?.error || e.message);
+      }
       setQ(null);
     } finally {
       setLoading(false);
@@ -55,21 +66,43 @@ export function PracticeMode() {
         (async () => {
           setPhase("result");
           try {
-            const d = await api(`/practice/solution?questionId=${q.id}`);
+            const d = await api("/practice/timeout", {
+              method: "POST",
+              body: { questionId: q.id },
+            });
             setFeedback({
               timedOut: true,
               correct: false,
               correctAnswer: d.correctAnswer,
               explanation: d.explanation,
             });
+            if (d.freePractice) setFreeMeta(d.freePractice);
           } catch (e) {
-            setErr(e.data?.error || e.message);
+            if (e.status === 403 && e.data?.code === "PAYWALL_PRACTICE") {
+              setPaywall(true);
+            } else {
+              setErr(e.data?.error || e.message);
+            }
           }
         })();
       }
     }, 200);
     return () => clearInterval(id);
   }, [phase, q]);
+
+  async function loadHint() {
+    if (!q) return;
+    setHintBusy(true);
+    setHint(null);
+    try {
+      const d = await api(`/practice/hint?questionId=${q.id}`);
+      setHint(d.hint);
+    } catch (e) {
+      setErr(e.data?.error || e.message);
+    } finally {
+      setHintBusy(false);
+    }
+  }
 
   async function submitAnswer(letter) {
     if (!q || saving || timeoutHandled.current) return;
@@ -87,8 +120,13 @@ export function PracticeMode() {
         },
       });
       setFeedback(d);
+      if (d.freePractice) setFreeMeta(d.freePractice);
     } catch (e) {
-      setErr(e.data?.error || e.message);
+      if (e.status === 403 && e.data?.code === "PAYWALL_PRACTICE") {
+        setPaywall(true);
+      } else {
+        setErr(e.data?.error || e.message);
+      }
     } finally {
       setSaving(false);
     }
@@ -97,9 +135,23 @@ export function PracticeMode() {
   return (
     <div className="max-w-2xl mx-auto px-4 py-8 page-enter" dir="rtl">
       <h1 className="text-2xl font-bold text-brand mb-1">وضع التمرين</h1>
-      <p className="text-slate-500 text-sm mb-6" dir="ltr" lang="en">
-        1 min countdown · choose section · instant feedback
+      <p className="text-slate-500 text-sm mb-2" dir="ltr" lang="en">
+        1 min per question (spec) · 5 free questions without subscription, then paywall
       </p>
+      {freeMeta && !freeMeta.unlimited && freeMeta.remaining != null && (
+        <p className="text-sm text-amber-900 bg-amber-50 border border-amber-200/60 rounded-lg px-3 py-2 mb-3">
+          متبقٍ في التجربة المجانية: <strong>{freeMeta.remaining}</strong> / {freeMeta.limit}
+        </p>
+      )}
+      {paywall && (
+        <div className="mb-4 p-4 border-2 border-gold/50 rounded-2xl bg-amber-50/90">
+          <p className="font-bold text-brand mb-1">انتهت أسئلة التمرين المجانية (5)</p>
+          <Link to="/pricing" className="text-brand underline font-medium">
+            فعّل اشتراكاً
+          </Link>{" "}
+          (واجهة ديمو).
+        </div>
+      )}
       <div className="flex flex-wrap gap-2 mb-6">
         {sections.map((s) => (
           <button
@@ -110,6 +162,7 @@ export function PracticeMode() {
               setQ(null);
               setFeedback(null);
               setErr("");
+              setPaywall(false);
             }}
             className={`px-3 py-1.5 rounded-lg text-sm font-medium ${
               section === s.id
@@ -122,7 +175,7 @@ export function PracticeMode() {
         ))}
       </div>
 
-      {err && !loading && (
+      {err && !loading && !paywall && (
         <div
           className="mb-4 text-red-600 text-sm bg-red-50 border border-red-100 rounded-lg px-3 py-2"
           role="alert"
@@ -131,7 +184,7 @@ export function PracticeMode() {
         </div>
       )}
 
-      {!q && !loading && (
+      {!q && !loading && !paywall && (
         <button
           type="button"
           onClick={() => loadQuestion(section)}
@@ -145,12 +198,25 @@ export function PracticeMode() {
 
       {q && !feedback && phase === "question" && (
         <div className="mt-2">
-          <div className="flex justify-between items-center mb-3">
+          <div className="flex flex-wrap justify-between items-center gap-2 mb-3">
             <span className="text-xs text-slate-500">الوقت</span>
             <span className="font-mono text-lg text-brand" dir="ltr">
               {fmt(left)}
             </span>
+            <button
+              type="button"
+              onClick={loadHint}
+              disabled={hintBusy}
+              className="text-xs px-2 py-1 border border-gold/60 rounded-lg text-brand hover:bg-amber-50"
+            >
+              {hintBusy ? "…" : "تلميح (AI)"}
+            </button>
           </div>
+          {hint && (
+            <p className="text-sm text-slate-700 bg-slate-100 rounded-lg p-2 mb-3 border border-slate-200">
+              {hint}
+            </p>
+          )}
           <p className="text-slate-800 font-medium leading-relaxed mb-6">{q.questionText}</p>
           {["A", "B", "C", "D"].map((L) => (
             <button
@@ -170,11 +236,11 @@ export function PracticeMode() {
       {feedback && (
         <div className="mt-4 p-4 rounded-xl border border-slate-200 bg-slate-50/80">
           {feedback.timedOut && (
-            <p className="text-amber-800 text-sm font-semibold mb-2">انتهى الوقت</p>
+            <p className="text-amber-800 text-sm font-semibold mb-2">انتهى الوقت (يُسجّل لحد التجربة)</p>
           )}
           <p className="font-bold text-brand mb-1">
             {!feedback.timedOut && (feedback.correct ? "صحيح ✓" : "خطأ ✗")}
-            {" الإجابة الصحيحة: "}
+            {" الإجابة: "}
             <span dir="ltr" className="font-mono">
               {feedback.correctAnswer}
             </span>
@@ -187,6 +253,8 @@ export function PracticeMode() {
                 setQ(null);
                 setFeedback(null);
                 setErr("");
+                setHint(null);
+                setPaywall(false);
                 loadQuestion(section);
               }}
               className="px-4 py-2 bg-brand text-white rounded-lg text-sm"

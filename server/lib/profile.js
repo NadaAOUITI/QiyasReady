@@ -1,9 +1,29 @@
 import { db } from "../db.js";
 
-const PAID = new Set(["beginner", "basic", "expert"]);
+/** “Super” in product spec = expert tier in DB; all unlock paid features */
+const PAID = new Set(["beginner", "basic", "expert", "super"]);
+
+export const FREE_PRACTICE_QUESTIONS = 5;
 
 export function isPaidTier(tier) {
   return PAID.has(String(tier || "").toLowerCase());
+}
+
+export function practiceSessionCount(userId) {
+  return (
+    db
+      .prepare("SELECT COUNT(*) as c FROM practice_sessions WHERE user_id = ?")
+      .get(userId).c || 0
+  );
+}
+
+export function canUseFreePractice(userId) {
+  if (isPaidTier(db.prepare("SELECT subscription_tier FROM users WHERE id = ?").get(userId)?.subscription_tier)) {
+    return { ok: true, remaining: null, limit: null };
+  }
+  const c = practiceSessionCount(userId);
+  const rem = Math.max(0, FREE_PRACTICE_QUESTIONS - c);
+  return { ok: c < FREE_PRACTICE_QUESTIONS, remaining: rem, limit: FREE_PRACTICE_QUESTIONS };
 }
 
 export function updateLoginStreak(userId) {
@@ -85,6 +105,16 @@ export function getProfile(userId) {
     streakDays: u.streak_days ?? 0,
     studyPlan,
     badges,
+    freePractice: (() => {
+      const c = practiceSessionCount(userId);
+      const paid = isPaidTier(u.subscription_tier);
+      return {
+        limit: FREE_PRACTICE_QUESTIONS,
+        used: c,
+        remaining: paid ? null : Math.max(0, FREE_PRACTICE_QUESTIONS - c),
+        unlimited: paid,
+      };
+    })(),
   };
 }
 

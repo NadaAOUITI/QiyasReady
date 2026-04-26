@@ -13,20 +13,20 @@ import { api } from "../lib/api.js";
 
 export default function Performance() {
   const [d, setD] = useState(null);
+  const [pr, setPr] = useState(null);
   const [err, setErr] = useState("");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let c = true;
     (async () => {
-      try {
-        const res = await api("/exams/performance");
-        if (c) setD(res);
-      } catch (e) {
-        if (c) setErr(e.data?.error || e.message);
-      } finally {
-        if (c) setLoading(false);
-      }
+      const [a, b] = await Promise.allSettled([api("/exams/performance"), api("/practice/performance")]);
+      if (!c) return;
+      setErr("");
+      if (a.status === "fulfilled") setD(a.value);
+      else setErr("تعذر تحميل أداء المحاكاة.");
+      if (b.status === "fulfilled") setPr(b.value);
+      setLoading(false);
     })();
     return () => {
       c = false;
@@ -41,10 +41,18 @@ export default function Performance() {
       </div>
     );
   }
-  if (err || !d) {
+  if (!d && err) {
     return (
       <div className="max-w-3xl mx-auto px-4 py-10">
-        <p className="text-red-600 mb-2">{err || "خطأ"}</p>
+        <p className="text-red-600 mb-2">{err}</p>
+        <Link to="/dashboard" className="text-brand">← رجوع</Link>
+      </div>
+    );
+  }
+  if (!d) {
+    return (
+      <div className="max-w-3xl mx-auto px-4 py-10">
+        <p className="text-slate-600">لا بيانات محاكاة.</p>
         <Link to="/dashboard" className="text-brand">← رجوع</Link>
       </div>
     );
@@ -56,8 +64,32 @@ export default function Performance() {
     <div className="max-w-4xl mx-auto px-4 py-8 page-enter" dir="rtl">
       <h1 className="text-2xl font-bold text-brand mb-1">الأداء والتحليلات</h1>
       <p className="text-slate-500 text-sm mb-6" dir="ltr" lang="en">
-        Accuracy over mock exams (submitted) · recharts
+        Mock test vs practice (per spec) · charts
       </p>
+      {pr && pr.total > 0 && (
+        <div className="mb-10 p-4 bg-emerald-50/80 border border-emerald-200/60 rounded-2xl">
+          <h2 className="text-sm font-bold text-emerald-900 mb-2">تمرين — Practice</h2>
+          <p className="text-sm text-slate-700 mb-2">
+            إجمالي التمارين: {pr.total} — دقة تقريبية:{" "}
+            {pr.accuracy != null ? `${Math.round(pr.accuracy * 10) / 10}%` : "—"}
+          </p>
+          <ul className="text-sm text-slate-600 space-y-1">
+            {(pr.bySection || []).map((b) => (
+              <li key={b.section} dir="ltr" lang="en">
+                {b.section}: {b.attempts} attempts,{" "}
+                {b.accuracy != null ? `${Math.round(b.accuracy * 10) / 10}%` : "—"} accuracy
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {pr && pr.total === 0 && (
+        <p className="text-slate-500 text-sm mb-6">
+          لا بيانات تمرين بعد — <Link to="/practice" className="text-brand font-medium">ابدأ التمرين</Link>
+        </p>
+      )}
+
+      <h2 className="text-sm font-bold text-slate-500 mb-2">محاكاة — Mock tests</h2>
       {d.examCount === 0 ? (
         <div className="p-6 bg-amber-50 border border-amber-200/60 rounded-2xl text-amber-900 text-sm mb-6">
           {d.insight}

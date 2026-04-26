@@ -7,6 +7,7 @@ const tiers = [
   { id: "beginner", name: "Beginner", sar: 29, items: ["محاكاة واحدة أسبوعياً", "تمارين أساسية", "دعم بريد"] },
   { id: "basic", name: "Basic", sar: 59, items: ["محاكاة غير محدودة", "تحليلات الأداء", "شارة تقدم"], highlight: true },
   { id: "expert", name: "Expert", sar: 99, items: ["كل ميزات Basic", "جلسات استراتيجية", "أولوية الدعم"] },
+  { id: "super", name: "Super", sar: 129, items: ["كل ميزات Expert", "تقارير أخطاء موسّعة (ديمو)", "وصول مبكر للميزات"] },
 ];
 
 export function Pricing() {
@@ -45,7 +46,7 @@ export function Pricing() {
           {msg}
         </p>
       )}
-      <div className="grid md:grid-cols-3 gap-4">
+      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {tiers.map((t) => (
           <div
             key={t.id}

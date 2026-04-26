@@ -6,7 +6,7 @@ import { getProfile } from "../lib/profile.js";
 const router = Router();
 router.use(requireAuth);
 
-const TIERS = new Set(["beginner", "basic", "expert", "none"]);
+const TIERS = new Set(["beginner", "basic", "expert", "super", "none"]);
 
 /** PATCH /api/users/profile */
 router.patch("/profile", (req, res) => {

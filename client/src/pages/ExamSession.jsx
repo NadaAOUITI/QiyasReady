@@ -149,7 +149,12 @@ export function ExamSession() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-900 text-white flex flex-col" dir="rtl">
+    <div
+      className="min-h-screen bg-slate-900 text-white flex flex-col select-none"
+      dir="rtl"
+      onContextMenu={(e) => e.preventDefault()}
+      onCopy={(e) => e.preventDefault()}
+    >
       <header className="bg-brand/95 border-b border-white/10 px-4 py-3 flex flex-wrap items-center justify-between gap-2 shrink-0">
         <div className="text-sm text-white/80" dir="ltr" lang="en">
           QiyasReady · <span className="text-gold font-mono">Mock</span>

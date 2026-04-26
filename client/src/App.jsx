@@ -18,6 +18,7 @@ import { Leaderboard } from "./pages/Leaderboard.jsx";
 import { Profile } from "./pages/Profile.jsx";
 import { Pricing } from "./pages/Pricing.jsx";
 import { NotFound } from "./pages/NotFound.jsx";
+import CommonMistakes from "./pages/CommonMistakes.jsx";
 
 const Performance = lazy(() => import("./pages/Performance.jsx"));
 
@@ -59,6 +60,7 @@ export default function App() {
                 <Route path="/materials" element={<StudyMaterial />} />
                 <Route path="/leaderboard" element={<Leaderboard />} />
                 <Route path="/profile" element={<Profile />} />
+                <Route path="/common-mistakes" element={<CommonMistakes />} />
               </Route>
             </Route>
             <Route path="*" element={<NotFound />} />

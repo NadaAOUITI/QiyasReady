@@ -1,18 +1,12 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { api } from "../lib/api.js";
-import { useAuth } from "../context/AuthContext.jsx";
 
 export function MockExam() {
   const nav = useNavigate();
-  const { refresh } = useAuth();
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const [paywall, setPaywall] = useState(false);
-
-  useEffect(() => {
-    refresh();
-  }, [refresh]);
 
   async function start() {
     setErr("");

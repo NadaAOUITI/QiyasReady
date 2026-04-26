@@ -2,7 +2,13 @@ import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
 
 const tierLabel = (t) => {
-  const m = { none: "تجريبي", beginner: "Beginner (29 ر.س)", basic: "Basic (59 ر.س)", expert: "Expert (99 ر.س)" };
+  const m = {
+    none: "تجريبي",
+    beginner: "Beginner (29 ر.س)",
+    basic: "Basic (59 ر.س)",
+    expert: "Expert (99 ر.س)",
+    super: "Super (129 ر.س)",
+  };
   return m[t] || t;
 };
 
@@ -21,6 +27,12 @@ export function Profile() {
         </p>
         <p className="text-sm text-slate-500 mt-3">الباقة</p>
         <p>{tierLabel(user?.subscriptionTier)}</p>
+        {user?.freePractice && !user.freePractice.unlimited && user.freePractice.remaining != null && (
+          <p className="text-xs text-slate-700 mt-2">
+            تمرين مجاني: {user.freePractice.used} / {user.freePractice.limit} — متبقٍ:{" "}
+            <strong>{user.freePractice.remaining}</strong>
+          </p>
+        )}
         {user?.freeTrialExhausted && (
           <p className="text-xs text-amber-800 mt-2 bg-amber-50 rounded-lg px-2 py-1">
             تم استخدام المحاكاة المجانية. يمكن الاشتراك من الأسعار.

@@ -32,6 +32,17 @@ const blocks = [
       "ثبّت عادات الإفطار والنوم أسبوعاً قبل الاختبار الحقيقي.",
     ],
   },
+  {
+    id: "wellbeing",
+    title: "الرفاهية وإدارة التوتر",
+    icon: "🧘",
+    items: [
+      "تنفّس بطيئاً: 4 ثوانٍ داخل، 6 ثوانٍ خارج قبل كل قسم.",
+      "قسّم الدراسة بجلسات 25 دقيقة مع استراحة 5 دقائق.",
+      "تجنب مقارنة نفسك بآخرين في نفس أسبوع الاختبار — ركّز على تحسنك فقط.",
+      "نم 7+ ساعات ليلتين متتاليتين قبل يوم الاختبار إن أمكن.",
+    ],
+  },
 ];
 
 export function StudyMaterial() {
@@ -41,7 +52,7 @@ export function StudyMaterial() {
       <p className="text-slate-500 text-sm mb-8" dir="ltr" lang="en">
         Curated tips — demo cards
       </p>
-      <div className="grid md:grid-cols-3 gap-4">
+      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {blocks.map((b) => (
           <div
             key={b.id}

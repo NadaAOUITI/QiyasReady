@@ -1,5 +1,6 @@
 import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext.jsx";
+import { useAccessibility } from "../../context/AccessibilityContext.jsx";
 import { AIChatWidget } from "../AIChatWidget.jsx";
 import { PageTipToasts } from "../PageTipToasts.jsx";
 
@@ -15,13 +16,22 @@ const nav = [
   { to: "/performance", label: "الأداء" },
   { to: "/study-plan", label: "خطة" },
   { to: "/materials", label: "مادة" },
+  { to: "/common-mistakes", label: "أخطاء" },
   { to: "/leaderboard", label: "لوحة" },
   { to: "/profile", label: "الملف" },
   { to: "/pricing", label: "الأسعار" },
 ];
 
+const fontSteps = [
+  { id: "sm", label: "ص" },
+  { id: "md", label: "ط" },
+  { id: "lg", label: "ك" },
+  { id: "xl", label: "ك+" },
+];
+
 export function AppLayout() {
   const { user, logout } = useAuth();
+  const { fontSize, setFontSize } = useAccessibility();
   const navGo = useNavigate();
   return (
     <div className="min-h-screen flex flex-col">
@@ -44,7 +54,23 @@ export function AppLayout() {
               ))}
             </nav>
           </div>
-          <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
+          <div className="flex items-center flex-wrap gap-1 w-full sm:w-auto justify-between sm:justify-end">
+            <div className="flex items-center gap-0.5" title="حجم النص" aria-label="حجم النص">
+              {fontSteps.map((f) => (
+                <button
+                  key={f.id}
+                  type="button"
+                  onClick={() => setFontSize(f.id)}
+                  className={`text-[10px] px-1.5 py-0.5 rounded border ${
+                    fontSize === f.id
+                      ? "border-gold bg-white/20 text-white"
+                      : "border-white/30 text-white/80 hover:bg-white/10"
+                  }`}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
             <span className="text-sm text-white/90 truncate max-w-[10rem]">{user?.name}</span>
             <button
               type="button"
