@@ -2,6 +2,10 @@
 
 Qiyas-style exam prep demo (React + Express + SQLite).
 
+## 🎬 Demo
+
+[![QiyasReady Demo](https://img.youtube.com/vi/JSQLLtRQnxU/0.jpg)](https://www.youtube.com/watch?v=JSQLLtRQnxU)
+
 ## Run
 
 From the repo root:
