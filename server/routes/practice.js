@@ -2,6 +2,7 @@ import { Router } from "express";
 import { db } from "../db.js";
 import { requireAuth } from "../middleware/auth.js";
 import { canUseFreePractice, getProfile, isPaidTier } from "../lib/profile.js";
+import { GROQ_CHAT_COMPLETIONS_URL, getGroqModel } from "../lib/groqConfig.js";
 
 const router = Router();
 router.use(requireAuth);
@@ -138,11 +139,11 @@ router.get("/hint", async (req, res) => {
   let hint = null;
   if (key) {
     try {
-      const r = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      const r = await fetch(GROQ_CHAT_COMPLETIONS_URL, {
         method: "POST",
         headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: "llama3-8b-8192",
+          model: getGroqModel(),
           temperature: 0.4,
           max_tokens: 200,
           messages: [

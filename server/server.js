@@ -1,6 +1,6 @@
-import "dotenv/config";
 import path from "path";
 import { fileURLToPath } from "url";
+import dotenv from "dotenv";
 import express from "express";
 import cors from "cors";
 import { initDb, db } from "./db.js";
@@ -12,6 +12,10 @@ import userRoutes from "./routes/users.js";
 import leaderboardRoutes from "./routes/leaderboard.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+/* Load .env from server/ first, then repo root (dotenv does not override already-set vars) */
+dotenv.config({ path: path.join(__dirname, ".env") });
+dotenv.config({ path: path.join(__dirname, "..", ".env") });
+
 const PORT = Number(process.env.PORT) || 3001;
 
 initDb();
@@ -26,7 +30,12 @@ app.use(cors({ origin: true, credentials: true }));
 app.use(express.json({ limit: "1mb" }));
 
 app.get("/api/health", (_req, res) => {
-  res.json({ ok: true, service: "qiyasready" });
+  res.json({
+    ok: true,
+    service: "qiyasready",
+    /** true when GROQ_API_KEY is set (value not exposed) */
+    groqConfigured: Boolean(process.env.GROQ_API_KEY && String(process.env.GROQ_API_KEY).trim()),
+  });
 });
 
 app.use("/api/auth", authRoutes);

@@ -1,12 +1,10 @@
 import { Router } from "express";
 import { db } from "../db.js";
 import { requireAuth } from "../middleware/auth.js";
+import { GROQ_CHAT_COMPLETIONS_URL, getGroqModel } from "../lib/groqConfig.js";
 
 const router = Router();
 router.use(requireAuth);
-
-const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
-const MODEL = "llama3-8b-8192";
 
 const SYSTEM = `You are a helpful Qiyas exam tutor. Answer only questions related to the Qiyas exam, math, Arabic language, and exam strategy. Be concise and encouraging. Respond in the same language the student uses (Arabic or English).`;
 
@@ -64,14 +62,18 @@ function weakSectionFromExams(userId) {
 }
 
 async function groqChat(messages) {
-  const key = process.env.GROQ_API_KEY;
+  const key = process.env.GROQ_API_KEY?.trim();
   if (!key) return null;
-  const r = await fetch(GROQ_URL, {
+  const r = await fetch(GROQ_CHAT_COMPLETIONS_URL, {
     method: "POST",
     headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ model: MODEL, messages, temperature: 0.5, max_tokens: 800 }),
+    body: JSON.stringify({ model: getGroqModel(), messages, temperature: 0.5, max_tokens: 800 }),
   });
-  if (!r.ok) return null;
+  if (!r.ok) {
+    const errText = await r.text().catch(() => "");
+    console.error("[ai] Groq error", r.status, errText.slice(0, 500));
+    return null;
+  }
   const d = await r.json();
   return d.choices?.[0]?.message?.content?.trim() || null;
 }
@@ -112,16 +114,22 @@ router.post("/chat", async (req, res) => {
     { role: "user", content: String(message).trim() },
   ];
   let reply;
+  let usedLocal = false;
   try {
     reply = await groqChat(messages);
   } catch (e) {
     console.error(e);
   }
   if (!reply) {
+    usedLocal = true;
     const tip = TIPS[Math.floor(Math.random() * TIPS.length)];
     reply = `${FALLBACK_CHAT}\n\nنصيحة سريعة: ${tip}`;
   }
-  res.json({ reply, fallback: !process.env.GROQ_API_KEY });
+  res.json({
+    reply,
+    /** true when this text was the offline template (no key, or Groq error/empty) */
+    fallback: usedLocal,
+  });
 });
 
 /** GET /api/ai/study-plan */
